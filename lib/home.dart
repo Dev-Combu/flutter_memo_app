@@ -23,6 +23,8 @@ class Home extends StatelessWidget {
           SizedBox(width: 10),
           Expanded(
             child: TextField(
+              controller:
+                  Get.find<MemoListController>().searchKeywordController,
               decoration: InputDecoration(
                 border: InputBorder.none,
                 hintText: '검색',
@@ -31,6 +33,18 @@ class Home extends StatelessWidget {
                   fontSize: 15,
                 ),
               ),
+              onChanged: (value) {
+                Get.find<MemoListController>().search(value);
+              },
+            ),
+          ),
+          GestureDetector(
+            onTap: () {
+              Get.find<MemoListController>().clearSearchKeyword();
+            },
+            child: Icon(
+              Icons.close,
+              color: Color(0xff888888),
             ),
           ),
         ],
@@ -38,13 +52,13 @@ class Home extends StatelessWidget {
     );
   }
 
-  Widget _monthlyMemoGroup(List<MemoModel> memoList) {
+  Widget _monthlyMemoGroup(String monthString, List<MemoModel> memoList) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         SizedBox(height: 30),
         Text(
-          '8월',
+          '$monthString월',
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
         ),
         SizedBox(height: 10),
@@ -59,31 +73,42 @@ class Home extends StatelessWidget {
             children: List.generate(
               memoList.length,
               (i) {
-                return Container(
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  decoration: BoxDecoration(
-                    border: Border(
-                      bottom: BorderSide(
-                        color: Color(0xffECECEC),
-                      ),
-                    ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Text(
-                        memoList[i].title,
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 17,
+                return GestureDetector(
+                  onTap: () async {
+                    var result = await Get.to(MemoWritePage(),
+                        binding: BindingsBuilder(() {
+                      Get.put(MemoWriteController(memoModel: memoList[i]));
+                    }));
+                    if (result != null) {
+                      Get.find<MemoListController>().reload();
+                    }
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    decoration: BoxDecoration(
+                      border: Border(
+                        bottom: BorderSide(
+                          color: Color(0xffECECEC),
                         ),
                       ),
-                      Text(
-                        memoList[i].memo,
-                        style:
-                            TextStyle(fontSize: 14, color: Color(0xff848484)),
-                      ),
-                    ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                          memoList[i].title,
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 17,
+                          ),
+                        ),
+                        Text(
+                          memoList[i].memo,
+                          style:
+                              TextStyle(fontSize: 14, color: Color(0xff848484)),
+                        ),
+                      ],
+                    ),
                   ),
                 );
               },
@@ -98,32 +123,52 @@ class Home extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Color(0xffEBEBEB),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 25),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                '메모',
-                style: TextStyle(
-                  fontSize: 35,
-                  fontWeight: FontWeight.bold,
+      body: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onTap: () {
+          FocusScope.of(context).unfocus(); // 추가
+        },
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 25),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  '메모',
+                  style: TextStyle(
+                    fontSize: 35,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-              ),
-              _searchBar(),
-              GetBuilder<MemoListController>(builder: (controller) {
-                return _monthlyMemoGroup(controller.memoList);
-              }),
-            ],
+                _searchBar(),
+                GetBuilder<MemoListController>(builder: (controller) {
+                  List<String> keys = [];
+                  List<List<MemoModel>> values = [];
+                  controller.memoGroup.forEach((key, value) {
+                    keys.add(key);
+                    values.add(value);
+                  });
+                  return Column(
+                    children: List.generate(keys.length, (i) {
+                      return _monthlyMemoGroup(keys[i], values[i]);
+                    }),
+                  );
+                }),
+              ],
+            ),
           ),
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Get.to(MemoWritePage(), binding: BindingsBuilder(() {
+        onPressed: () async {
+          var result =
+              await Get.to(MemoWritePage(), binding: BindingsBuilder(() {
             Get.put(MemoWriteController());
           }));
+          if (result != null) {
+            Get.find<MemoListController>().reload();
+          }
         },
         backgroundColor: Color(0xffF7C354),
         shape: RoundedRectangleBorder(
